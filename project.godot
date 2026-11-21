@@ -1,0 +1,41 @@
+; SARI FLIGHT SIMULATOR — Godot 4.3
+config_version=5
+
+[application]
+config/name="SARI FLIGHT SIMULATOR"
+run/main_scene="res://scenes/main_menu.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.42, 0.67, 0.88, 1)
+
+[physics]
+3d/default_gravity=9.8
+common/physics_ticks_per_second=60
+
+[autoload]
+GameManager="*res://scripts/game_manager.gd"
+
+[input]
+pitch_up={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":87)]}
+pitch_down={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":83)]}
+roll_left={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":65)]}
+roll_right={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":68)]}
+rud_left={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":81)]}
+rud_right={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":69)]}
+thr_up={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":82)]}
+thr_down={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":70)]}
+brake={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":32)]}
+gear={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":71)]}
+camera={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":67)]}
+pause={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":KEY_ESCAPE)]}
+engine_start={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":KEY_I)]}
+engine_stop={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":KEY_O)]}
