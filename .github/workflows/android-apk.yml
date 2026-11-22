@@ -78,7 +78,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./godot --headless --verbose --editor --path . --import 2>&1 | tee import.log
+          rm -rf .godot
+          export GODOT_SILENCE_ROOT_WARNING=1
+          ./godot --headless --rendering-method gl_compatibility --verbose --editor --path . --import 2>&1 | tee import.log
 
       - name: Parse-check every GDScript file
         shell: bash
