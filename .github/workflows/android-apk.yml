@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -42,19 +42,47 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          set +o pipefail
-          yes | sdkmanager --licenses >/dev/null
-          license_status=$?
-          set -o pipefail
-          if [ "$license_status" -ne 0 ]; then
-            echo "Android SDK license acceptance failed"
-            exit "$license_status"
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+
+          if [ -z "$SDK_ROOT" ]; then
+            echo "ERROR: Android SDK path was not configured."
+            env | grep -E 'ANDROID|SDK' || true
+            exit 1
           fi
-          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+          if ! command -v sdkmanager >/dev/null 2>&1; then
+            echo "ERROR: sdkmanager was not found in PATH."
+            find "$SDK_ROOT" -name sdkmanager -type f 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Android SDK: $SDK_ROOT"
+          echo "sdkmanager: $(command -v sdkmanager)"
+
+          set +o pipefail
+          yes | sdkmanager --sdk_root="$SDK_ROOT" --licenses >/dev/null
+          set -o pipefail
+
+          sdkmanager --sdk_root="$SDK_ROOT" --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Build native APK
         working-directory: android-native
-        run: gradle --no-daemon --stacktrace clean assembleDebug
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+        run: |
+          gradle --no-daemon --stacktrace clean assembleDebug
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          APK="android-native/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
