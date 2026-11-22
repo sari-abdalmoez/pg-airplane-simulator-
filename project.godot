@@ -39,3 +39,6 @@ camera={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":67)]}
 pause={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":KEY_ESCAPE)]}
 engine_start={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":KEY_I)]}
 engine_stop={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":KEY_O)]}
+
+[editor]
+import/use_multiple_threads=false
