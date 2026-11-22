@@ -1,22 +1,22 @@
 # SARI FLIGHT SIMULATOR
 
-A Godot 4.3 flight-simulator foundation with a 3D runway scene, selectable aircraft profiles, basic flight controls, and an in-game HUD.
+Native Android flight simulator project.
 
-## Run
-1. Open `project.godot` with Godot 4.3.
-2. Press F6/F5 or run the project.
-3. Choose **START FLIGHT**.
+## Architecture
 
-## Controls
-- W / S: pitch
-- A / D: roll
-- Q / E: rudder
-- R / F: throttle
-- G: landing gear state
-- C: camera position
-- I / O: engine start / stop
-- Space: ground brake
-- Esc: pause
+- Kotlin application
+- OpenGL ES 2.0 rendering
+- Android native touch controls
+- Native flight physics prototype
+- GitHub Actions builds the APK using Gradle and Android SDK
 
-## Scope
-This is a rebuilt, playable foundation based on the project requirements discussed. It is not a byte-for-byte restoration of unavailable original assets or scripts. Flight dynamics, aircraft geometry, terrain, audio, mobile touch controls, and export configuration still need iterative validation and expansion in Godot 4.3.
+The Android application does not bundle or require the Godot engine.
+The previous Godot project is retained in the repository as a legacy reference.
+
+## Build
+
+GitHub Actions builds:
+`android-native/app/build/outputs/apk/debug/app-debug.apk`
+
+Open the Actions tab and download the artifact:
+`SARI-Flight-Native-Android-APK`

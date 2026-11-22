@@ -9,3 +9,10 @@ export_presets.cfg
 Thumbs.db
 .vscode/
 .idea/
+
+# Native Android build
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml

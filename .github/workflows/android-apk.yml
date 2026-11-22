@@ -1,152 +1,65 @@
-name: Android APK Build
+name: SARI Native Android APK
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
-env:
-  GODOT_VERSION: "4.3"
-  GODOT_TAG: "4.3-stable"
-  TEMPLATE_DIR: "4.3.stable"
+permissions:
+  contents: read
 
 concurrency:
-  group: android-${{ github.ref }}
+  group: native-android-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-apk:
-    name: Validate & Build Android APK
+  build:
+    name: Build Native Android APK
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17 (Temurin)
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK and install packages
-        uses: android-actions/setup-android@v4
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          accept-android-sdk-licenses: 'true'
-          log-accepted-android-sdk-licenses: 'false'
-          packages: 'platform-tools build-tools;34.0.0 platforms;android-34'
+          gradle-version: "8.9"
 
-      - name: Download pinned Godot 4.3-stable (headless-capable editor binary)
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install Android SDK
         shell: bash
         run: |
           set -euo pipefail
-          curl -fL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
-          unzip -q godot.zip
-          mv "Godot_v${GODOT_TAG}_linux.x86_64" godot
-          chmod +x godot
-          ./godot --version
-
-      - name: Install matching Godot export templates
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz"
-          mkdir -p tmp_tpl
-          unzip -q templates.tpz -d tmp_tpl
-          DEST="$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}"
-          mkdir -p "$DEST"
-          if [ -d tmp_tpl/templates ]; then
-            mv tmp_tpl/templates/* "$DEST"/
-          else
-            mv tmp_tpl/* "$DEST"/
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          license_status=$?
+          set -o pipefail
+          if [ "$license_status" -ne 0 ]; then
+            echo "Android SDK license acceptance failed"
+            exit "$license_status"
           fi
-          test -f "$DEST/android_debug.apk"
-          test -f "$DEST/android_release.apk"
-          echo "Templates installed:" && ls "$DEST" | head -n 8
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Configure Godot editor settings (Android SDK / JDK paths)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.config/godot"
-          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' \
-            "$ANDROID_HOME" "$JAVA_HOME" > "$HOME/.config/godot/editor_settings-4.3.tres"
-          cat "$HOME/.config/godot/editor_settings-4.3.tres"
+      - name: Build native APK
+        working-directory: android-native
+        run: gradle --no-daemon --stacktrace clean assembleDebug
 
-      - name: Import project resources (headless)
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf .godot
-          export GODOT_SILENCE_ROOT_WARNING=1
-          ./godot --headless --rendering-method gl_compatibility --verbose --editor --path . --import 2>&1 | tee import.log
-
-      - name: Parse-check every GDScript file
-        shell: bash
-        run: |
-          set -euo pipefail
-          FAIL=0
-          while IFS= read -r f; do
-            if ! ./godot --headless --path . --check-only --script "res://$f" > /dev/null 2>&1; then
-              echo "PARSE FAIL: $f"; FAIL=1
-            fi
-          done < <(find scripts assets tools -name '*.gd' | sort)
-          if [ "$FAIL" -ne 0 ]; then exit 1; fi
-          echo "All scripts parsed OK."
-
-      - name: Run automated validation (scenes, resources, physics flight test)
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./godot --headless --path . res://tools/validate.tscn 2>&1 | tee validate.log
-          grep -q "VALIDATION PASSED" validate.log
-
-      - name: Generate debug keystore & wire into export preset
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p android
-          keytool -genkeypair -v -keystore android/debug.keystore \
-            -alias androiddebugkey -storepass android -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
-          sed -i "s|keystore/debug=\"\"|keystore/debug=\"$PWD/android/debug.keystore\"|" export_presets.cfg
-          sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|' export_presets.cfg
-          sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|' export_presets.cfg
-
-      - name: Export installable debug APK (arm64-v8a)
-        shell: bash
-        env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/android/debug.keystore
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
-          # For release signing later, add repository secrets and uncomment:
-          # GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/android/release.keystore
-          # GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.SARI_KEYSTORE_USER }}
-          # GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.SARI_KEYSTORE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          mkdir -p build
-          ./godot --headless --path . --export-debug "Android" "$PWD/build/SARI-Flight-debug.apk" 2>&1 | tee export.log
-          test -f build/SARI-Flight-debug.apk
-          ls -lh build/
-
-      - name: Upload APK artifact
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: SARI-Flight-Android-APK
-          path: build/SARI-Flight-debug.apk
+          name: SARI-Flight-Native-Android-APK
+          path: android-native/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
-
-      - name: Upload validation logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: SARI-Flight-Validation-Logs
-          path: |
-            import.log
-            validate.log
-            export.log
-          if-no-files-found: ignore
